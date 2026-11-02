@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oldspoon</title>
+<meta name="description" content="Software engineer building conversational AI end to end: Rasa NLU, a stateless action server, and the React client in front of it.">
+<meta name="author" content="oldspoon">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fdfdfc" media="(prefers-color-scheme: light)">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="oldspoon">
+<meta property="og:description" content="Software engineer building conversational AI end to end: Rasa NLU, a stateless action server, and the React client in front of it.">
+<meta property="og:url" content="https://oldspoon.github.io/">
+<meta property="og:site_name" content="oldspoon">
+<meta name="twitter:card" content="summary">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon-32x32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="canonical" href="https://oldspoon.github.io/">
+
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --fg: #1b1d21;
+    --muted: #6a6f78;
+    --rule: #e2e4e8;
+    --accent: #0b63c5;
+    --mark: #eef2f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --fg: #d7dce3;
+      --muted: #7f8792;
+      --rule: #232833;
+      --accent: #79b8ff;
+      --mark: #171c26;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15.5px/1.7 ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  main {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 4.5rem 1.25rem 6rem;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  a:hover { border-bottom-color: var(--accent); }
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  header h1 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.35rem;
+  }
+  header p {
+    color: var(--muted);
+    margin: 0;
+  }
+  header .bio {
+    margin-top: 0.5rem;
+    color: var(--fg);
+  }
+  header .bio p { margin: 0; }
+  header .bio p + p { margin-top: 0.75rem; }
+  header .bio p:first-child {
+    font-size: 1.02em;
+    color: var(--fg);
+  }
+  header .meta {
+    margin-top: 0.9rem;
+    font-size: 0.92em;
+  }
+  header .meta a { margin-right: 0.15rem; }
+  header .meta .sep { color: var(--rule); margin: 0 0.35rem; }
+
+  h2 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 3.25rem 0 1rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  ul.projects {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  ul.projects > li {
+    padding: 0.5rem 0.6rem;
+    margin: 0 -0.6rem;
+    border-radius: 4px;
+    transition: background-color 120ms ease;
+  }
+  ul.projects > li:hover { background: var(--mark); }
+  ul.projects > li + li { margin-top: 0.55rem; }
+
+  .name { font-weight: 700; }
+  .desc { color: var(--fg); }
+  .sub {
+    color: var(--muted);
+    font-size: 0.9em;
+    white-space: nowrap;
+  }
+  .sub a { color: var(--muted); border-bottom: 1px dotted var(--rule); }
+  .sub a:hover { color: var(--accent); border-bottom: 1px solid var(--accent); }
+
+  .colon { color: var(--muted); }
+
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 0.9em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.1rem;
+    justify-content: space-between;
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--accent); }
+
+  @media (max-width: 32rem) {
+    main { padding-top: 3rem; }
+    .sub { white-space: normal; }
+  }
+
+  @media print {
+    :root { --bg: #fff; --fg: #000; --muted: #444; --accent: #000; --mark: transparent; }
+    main { padding: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <header>
+    <h1>Constantine Mateev</h1>
+    <div class="bio">
+    <p>I'm a software engineer who builds conversational AI end to end — the NLU and dialogue model, the service behind it, and the interface people actually type into.</p>
+    <p>What excites me most is large-scale production engineering: keeping a system fast and correct under real traffic, coordinating across many services, and designing for failure before it turns into an outage.</p>
+    <p>Right now I'm tinkering with ways to apply machine learning algorithms and self-governed LLMs efficiently — smaller models, cheaper inference, and agents that check their own output instead of needing a human in the loop at every step.</p>
+    </div>
+    <p class="meta">
+      <a href="https://github.com/oldspoon">github</a>
+      <span class="sep">|</span>
+      <a href="mailto:k.mateev007@protonmail.com">email</a>
+    </p>
+  </header>
+
+  <h2>Projects</h2>
+  <ul class="projects">
+
+    <li>
+      <a class="name" href="https://github.com/oldspoon/Rasa-AI-Assistant">rasa-ai-assistant</a>
+      <span class="colon">:</span>
+      <span class="desc">machine learning demo for natural language understanding with Rasa</span>
+      <span class="sub">| <a href="https://oldspoon.github.io/Rasa-AI-Assistant/">(demo)</a> | <a href="https://github.com/oldspoon/Rasa-AI-Assistant">(source)</a></span>
+    </li>
+
+    <li>
+      <a class="name" href="https://github.com/oldspoon/Tennis-Game">tennis-game</a>
+      <span class="colon">:</span>
+      <span class="desc">two-player tennis in Java, written to learn game loops and collision handling</span>
+      <span class="sub">| <a href="https://github.com/oldspoon/Tennis-Game">(source)</a></span>
+    </li>
+
+  </ul>
+
+  <footer>
+    <span>
+      <a href="https://github.com/oldspoon">GitHub</a> |
+      <a href="mailto:k.mateev007@protonmail.com">Email</a> |
+      <a href="https://github.com/oldspoon/oldspoon.github.io">Site source</a>
+    </span>
+    <span>Constantine Mateev</span>
+  </footer>
+
+</main>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "oldspoon",
+  "url": "https://oldspoon.github.io/",
+  "sameAs": ["https://github.com/oldspoon"],
+  "jobTitle": "Software Engineer"
+}
+</script>
+</body>
+</html>
