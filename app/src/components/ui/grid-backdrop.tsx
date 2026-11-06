@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 
-type PixelGridOverlayProps = {
+type GridBackdropProps = {
   theme: "dark" | "light"
 }
 
@@ -64,11 +64,12 @@ function hash(x: number, y: number) {
 }
 
 /**
- * Dot-matrix grid: a faint, always-on 8px field with a brighter layer
- * revealed inside a circular flashlight. Moving the pointer throws square
- * pixels off the grid and falling dash marks run down the columns.
+ * Site-wide dot-matrix backdrop. A faint, always-on 8px field sits behind
+ * the page content; a circular flashlight reveals a brighter layer over any
+ * part of the site. Moving the pointer throws square pixels off the grid and
+ * falling dash marks run down the revealed columns.
  */
-export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
+export default function GridBackdrop({ theme }: GridBackdropProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -98,11 +99,10 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
     const baseCtx = base.getContext("2d")
 
     const resize = () => {
-      const rect = host.getBoundingClientRect()
       const dpr = Math.min(2, window.devicePixelRatio || 1)
 
-      width = rect.width
-      height = rect.height
+      width = window.innerWidth
+      height = window.innerHeight
       canvas.width = Math.max(1, Math.round(width * dpr))
       canvas.height = Math.max(1, Math.round(height * dpr))
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -113,7 +113,7 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
       base.height = canvas.height
       baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
       baseCtx.clearRect(0, 0, width, height)
-      baseCtx.fillStyle = `rgba(${palette.base}, ${theme === "dark" ? 0.07 : 0.04})`
+      baseCtx.fillStyle = `rgba(${palette.base}, ${theme === "dark" ? 0.06 : 0.04})`
 
       for (let x = CELL / 2; x < width; x += CELL) {
         for (let y = CELL / 2; y < height; y += CELL) {
@@ -147,36 +147,23 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
       }
     }
 
-    const readPointer = (event: PointerEvent) => {
-      const rect = host.getBoundingClientRect()
-
-      return { x: event.clientX - rect.left, y: event.clientY - rect.top }
-    }
-
-    const onPointerEnter = (event: PointerEvent) => {
-      const next = readPointer(event)
-
-      pointer.x = next.x
-      pointer.y = next.y
-      pointer.active = true
-    }
-
     const onPointerMove = (event: PointerEvent) => {
-      const next = readPointer(event)
-      const distance = Math.hypot(next.x - pointer.x, next.y - pointer.y)
+      const distance = Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y)
 
-      pointer.x = next.x
-      pointer.y = next.y
+      pointer.x = event.clientX
+      pointer.y = event.clientY
       pointer.active = true
 
       if (distance < 0.5) return
 
       pointer.burst = Math.min(1, pointer.burst + distance / 140 + 0.06)
-      spawn(Math.min(6, Math.max(1, Math.floor(distance / 10))))
+      spawn(Math.min(8, Math.max(2, Math.round(distance / 6))))
     }
 
     const onPointerDown = (event: PointerEvent) => {
-      onPointerEnter(event)
+      pointer.x = event.clientX
+      pointer.y = event.clientY
+      pointer.active = true
       pointer.burst = 1
       spawn(16)
     }
@@ -187,6 +174,26 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
 
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") onPointerLeave()
+    }
+
+    const drawScrim = (radius: number, reveal: number) => {
+      const scrim = theme === "dark" ? "9, 9, 11" : "255, 255, 255"
+      const gradient = ctx.createRadialGradient(
+        pointer.x,
+        pointer.y,
+        radius * 0.12,
+        pointer.x,
+        pointer.y,
+        radius,
+      )
+
+      gradient.addColorStop(0, `rgba(${scrim}, ${0.8 * reveal})`)
+      gradient.addColorStop(0.72, `rgba(${scrim}, ${0.55 * reveal})`)
+      gradient.addColorStop(1, `rgba(${scrim}, 0)`)
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(pointer.x, pointer.y, radius, 0, Math.PI * 2)
+      ctx.fill()
     }
 
     const drawGrid = (radius: number, reveal: number) => {
@@ -267,26 +274,6 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
       }
     }
 
-    const drawScrim = (radius: number, reveal: number) => {
-      const scrim = theme === "dark" ? "9, 9, 11" : "255, 255, 255"
-      const gradient = ctx.createRadialGradient(
-        pointer.x,
-        pointer.y,
-        radius * 0.12,
-        pointer.x,
-        pointer.y,
-        radius,
-      )
-
-      gradient.addColorStop(0, `rgba(${scrim}, ${0.8 * reveal})`)
-      gradient.addColorStop(0.72, `rgba(${scrim}, ${0.55 * reveal})`)
-      gradient.addColorStop(1, `rgba(${scrim}, 0)`)
-      ctx.fillStyle = gradient
-      ctx.beginPath()
-      ctx.arc(pointer.x, pointer.y, radius, 0, Math.PI * 2)
-      ctx.fill()
-    }
-
     const drawReticle = (radius: number, reveal: number) => {
       const cx = pointer.x
       const cy = pointer.y
@@ -313,6 +300,18 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
 
       ctx.fillStyle = `rgba(${palette.coral}, ${0.95 * reveal})`
       ctx.fillRect(cx - 1, cy - 1, 2, 2)
+
+      if (reveal > 0.5) {
+        const label = `${Math.floor(cx / CELL)}:${Math.floor(cy / CELL)}`
+        const labelX = cx + 24
+        const labelY = cy + 20
+
+        if (labelX + 48 < width && labelY + 12 < height) {
+          ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          ctx.fillStyle = `rgba(${palette.violet}, ${0.7 * reveal})`
+          ctx.fillText(label, labelX, labelY)
+        }
+      }
     }
 
     const render = (now: number) => {
@@ -329,7 +328,7 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
       const reveal = pointer.reveal
 
       if (reveal > 0.01 && width > 0 && height > 0) {
-        const baseRadius = Math.min(FLASHLIGHT_RADIUS, Math.min(width, height) * 0.42)
+        const baseRadius = Math.min(FLASHLIGHT_RADIUS, Math.min(width, height) * 0.32)
         const radius = baseRadius * (0.6 + 0.4 * reveal)
 
         drawScrim(radius, reveal)
@@ -379,14 +378,14 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
 
     const observer = new ResizeObserver(resize)
 
-    observer.observe(host)
+    observer.observe(document.documentElement)
     motionQuery.addEventListener("change", onMotionChange)
-    host.addEventListener("pointerenter", onPointerEnter)
-    host.addEventListener("pointermove", onPointerMove)
-    host.addEventListener("pointerdown", onPointerDown)
-    host.addEventListener("pointerleave", onPointerLeave)
-    host.addEventListener("pointerup", onPointerUp)
-    host.addEventListener("pointercancel", onPointerLeave)
+    window.addEventListener("resize", resize)
+    window.addEventListener("pointermove", onPointerMove, { passive: true })
+    window.addEventListener("pointerdown", onPointerDown, { passive: true })
+    window.addEventListener("pointerup", onPointerUp, { passive: true })
+    window.addEventListener("blur", onPointerLeave)
+    document.documentElement.addEventListener("pointerleave", onPointerLeave)
 
     frame = requestAnimationFrame((now) => {
       lastFrame = now
@@ -397,21 +396,17 @@ export default function PixelGridOverlay({ theme }: PixelGridOverlayProps) {
       cancelAnimationFrame(frame)
       observer.disconnect()
       motionQuery.removeEventListener("change", onMotionChange)
-      host.removeEventListener("pointerenter", onPointerEnter)
-      host.removeEventListener("pointermove", onPointerMove)
-      host.removeEventListener("pointerdown", onPointerDown)
-      host.removeEventListener("pointerleave", onPointerLeave)
-      host.removeEventListener("pointerup", onPointerUp)
-      host.removeEventListener("pointercancel", onPointerLeave)
+      window.removeEventListener("resize", resize)
+      window.removeEventListener("pointermove", onPointerMove)
+      window.removeEventListener("pointerdown", onPointerDown)
+      window.removeEventListener("pointerup", onPointerUp)
+      window.removeEventListener("blur", onPointerLeave)
+      document.documentElement.removeEventListener("pointerleave", onPointerLeave)
     }
   }, [theme])
 
   return (
-    <div
-      ref={hostRef}
-      aria-hidden="true"
-      className="absolute inset-0 z-10 touch-pan-y [cursor:crosshair]"
-    >
+    <div ref={hostRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-20">
       <canvas ref={canvasRef} className="h-full w-full" />
     </div>
   )

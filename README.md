@@ -39,6 +39,7 @@ app/
     index.css           # Tailwind import + base styles
     components/ui/
       portfolio-hero-with-paper-shaders.tsx
+      grid-backdrop.tsx     # site-wide dot grid + flashlight
     lib/utils.ts        # cn() helper used by shadcn components
 components.json         # shadcn CLI config
 vite.config.ts          # root: app, single-file output, @ alias
@@ -75,21 +76,24 @@ respects `prefers-reduced-motion` (rotation and shader motion stop, static
 frame remains) and the colors follow the theme toggle. On narrow screens the
 panel moves above the CV text and keeps a fixed 38vh height.
 
-### Grid + cursor interaction
+### Site-wide grid
 
-`components/ui/pixel-grid-overlay.tsx` draws on top of the shader:
+`components/ui/grid-backdrop.tsx` is a fixed, full-viewport canvas (z-20,
+`pointer-events: none`) that sits over the whole page, so the CV text, the
+project list and the shader panel all share one grid:
 
-- a faint, always-on 8px dot grid (2px square pixels) using a technical
-dot-matrix palette — white, violet `#B897FB` and sparse coral `#F6543E` on
-near-black, inverted for the light theme;
-- a circular flashlight with a soft near-opaque scrim that reveals a brighter
-grid layer, a hairline ring and a crosshair reticle with a coral centre;
+- a faint, always-on 8px dot grid (2px square pixels), white on near-black and
+  inverted for the light theme;
+- a circular flashlight that follows the pointer anywhere on the site and
+  reveals a brighter layer through a soft scrim, with a hairline ring and a
+  crosshair that labels the current grid cell;
 - square pixels that lift off grid points as the pointer moves and fall under
-gravity, plus falling 1px dash marks in the revealed columns.
+  gravity, plus falling 1px dash marks in the revealed columns.
 
-The lens radius scales down with the panel on small screens. Everything is
-canvas 2D, capped at ~220 particles and 22 dashes, and `prefers-reduced-motion`
-disables splashes, dashes and rotation while keeping the flashlight reveal.
+Content sits above the backdrop (`z-30`) and clicks pass straight through
+it. The canvas is capped at ~220 particles and 22 dashes, and
+`prefers-reduced-motion` turns off splashes, dashes and rotation while keeping
+the flashlight reveal.
 
 ## Deployment
 

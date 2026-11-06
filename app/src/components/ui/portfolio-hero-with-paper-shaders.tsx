@@ -3,7 +3,7 @@
 import { Dithering } from "@paper-design/shaders-react"
 import { Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
-import PixelGridOverlay from "@/components/ui/pixel-grid-overlay"
+import GridBackdrop from "@/components/ui/grid-backdrop"
 
 type Theme = "dark" | "light"
 
@@ -116,10 +116,14 @@ export default function PortfolioHero() {
       : "hover:text-black hover:decoration-black/40 focus-visible:text-black")
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden md:flex-row">
+    <div
+      className={`relative flex min-h-screen flex-col overflow-hidden md:flex-row ${
+        isDarkMode ? "bg-[#09090b]" : "bg-white"
+      }`}
+    >
       <section
-        className={`relative z-10 flex w-full flex-col justify-between gap-12 p-6 font-mono sm:p-10 md:min-h-screen md:w-1/2 ${
-          isDarkMode ? "bg-black text-white" : "bg-white text-black"
+        className={`relative z-30 flex w-full flex-col justify-between gap-12 p-6 font-mono sm:p-10 md:min-h-screen md:w-1/2 ${
+          isDarkMode ? "text-white" : "text-black"
         }`}
       >
         <div className="min-w-0">
@@ -226,8 +230,9 @@ export default function PortfolioHero() {
         }`}
       >
         <DitheringField isDarkMode={isDarkMode} reduceMotion={reduceMotion} />
-        <PixelGridOverlay theme={theme} />
       </div>
+
+      <GridBackdrop theme={theme} />
     </div>
   )
 }
