@@ -70,10 +70,26 @@ The CLI reads `components.json` (style, CSS path, aliases) and writes into
 
 ## The shader panel
 
-`Dithering` is a client-only WebGL component. It respects
-`prefers-reduced-motion` (animation stops, static frame remains) and the
-colors follow the theme toggle. On narrow screens the panel moves above the CV
-text and keeps a fixed 38vh height.
+`Dithering` is a client-only WebGL component. It rotates slowly (4°/s),
+respects `prefers-reduced-motion` (rotation and shader motion stop, static
+frame remains) and the colors follow the theme toggle. On narrow screens the
+panel moves above the CV text and keeps a fixed 38vh height.
+
+### Grid + cursor interaction
+
+`components/ui/pixel-grid-overlay.tsx` draws on top of the shader:
+
+- a faint, always-on 8px dot grid (2px square pixels) using a technical
+dot-matrix palette — white, violet `#B897FB` and sparse coral `#F6543E` on
+near-black, inverted for the light theme;
+- a circular flashlight with a soft near-opaque scrim that reveals a brighter
+grid layer, a hairline ring and a crosshair reticle with a coral centre;
+- square pixels that lift off grid points as the pointer moves and fall under
+gravity, plus falling 1px dash marks in the revealed columns.
+
+The lens radius scales down with the panel on small screens. Everything is
+canvas 2D, capped at ~220 particles and 22 dashes, and `prefers-reduced-motion`
+disables splashes, dashes and rotation while keeping the flashlight reveal.
 
 ## Deployment
 

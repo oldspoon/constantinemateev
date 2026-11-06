@@ -3,6 +3,7 @@
 import { Dithering } from "@paper-design/shaders-react"
 import { Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
+import PixelGridOverlay from "@/components/ui/pixel-grid-overlay"
 
 type Theme = "dark" | "light"
 
@@ -33,6 +34,51 @@ function readInitialTheme(): Theme {
   return document.documentElement.dataset.theme === "light" ? "light" : "dark"
 }
 
+function DitheringField({
+  isDarkMode,
+  reduceMotion,
+}: {
+  isDarkMode: boolean
+  reduceMotion: boolean
+}) {
+  const [rotation, setRotation] = useState(0)
+
+  useEffect(() => {
+    if (reduceMotion) {
+      setRotation(0)
+      return
+    }
+
+    let frame = 0
+    const started = performance.now()
+
+    const tick = (now: number) => {
+      // 4°/s, rounded to whole degrees so React only re-renders a few times a second.
+      setRotation(Math.floor(((now - started) / 1000) * 4) % 360)
+      frame = requestAnimationFrame(tick)
+    }
+
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [reduceMotion])
+
+  return (
+    <Dithering
+      style={{ height: "100%", width: "100%" }}
+      colorBack={isDarkMode ? "#09090b" : "hsl(0, 0%, 95%)"}
+      colorFront={isDarkMode ? "hsl(320, 100%, 70%)" : "hsl(220, 100%, 70%)"}
+      shape="swirl"
+      type="4x4"
+      size={3}
+      offsetX={0}
+      offsetY={0}
+      scale={0.8}
+      rotation={rotation}
+      speed={reduceMotion ? 0 : 0.1}
+    />
+  )
+}
+
 export default function PortfolioHero() {
   const [theme, setTheme] = useState<Theme>(readInitialTheme)
   const [reduceMotion, setReduceMotion] = useState(false)
@@ -50,7 +96,7 @@ export default function PortfolioHero() {
     const root = document.documentElement
     root.dataset.theme = theme
     root.style.colorScheme = theme
-    root.style.backgroundColor = theme === "dark" ? "#000000" : "#ffffff"
+    root.style.backgroundColor = theme === "dark" ? "#09090b" : "#ffffff"
 
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme)
@@ -176,22 +222,11 @@ export default function PortfolioHero() {
       <div
         aria-hidden="true"
         className={`relative order-first h-[38vh] w-full overflow-hidden md:order-last md:h-auto md:min-h-screen md:w-1/2 ${
-          isDarkMode ? "bg-black" : "bg-white"
+          isDarkMode ? "bg-[#09090b]" : "bg-white"
         }`}
       >
-        <Dithering
-          style={{ height: "100%", width: "100%" }}
-          colorBack={isDarkMode ? "hsl(0, 0%, 0%)" : "hsl(0, 0%, 95%)"}
-          colorFront={isDarkMode ? "hsl(320, 100%, 70%)" : "hsl(220, 100%, 70%)"}
-          shape="swirl"
-          type="4x4"
-          size={3}
-          offsetX={0}
-          offsetY={0}
-          scale={0.8}
-          rotation={0}
-          speed={reduceMotion ? 0 : 0.1}
-        />
+        <DitheringField isDarkMode={isDarkMode} reduceMotion={reduceMotion} />
+        <PixelGridOverlay theme={theme} />
       </div>
     </div>
   )
