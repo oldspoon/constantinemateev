@@ -6,6 +6,9 @@ structure. Content is based only on the previous site; the name and contact
 details are anonymized to the `oldspoon` handle, while each project keeps its
 real `(demo)` / `(source)` links.
 
+Build history, design decisions and deploy notes are in
+[`docs/how-it-was-built.md`](docs/how-it-was-built.md).
+
 ## Stack
 
 - React 19 + TypeScript, built with Vite 7
