@@ -94,25 +94,53 @@ Only the visual language was taken. No code was copied from that site.
 
 ### Implementation
 
-`app/src/components/ui/grid-backdrop.tsx` is a fixed, full-viewport `<canvas>`
-at `z-20` with `pointer-events: none`. The page content sits above it at
-`z-30`, so text stays readable and links keep receiving clicks.
+`app/src/components/ui/grid-backdrop.tsx` renders two layers, both fixed to the
+viewport and both with `pointer-events: none`, so links keep receiving clicks:
+
+- a full-viewport `<canvas>` at `z-20` for the dot grid, flashlight, splashes
+  and dash streaks;
+- a DOM crosshair at `z-50` that acts as the cursor (see the Cursor section).
+
+The page content sits at `z-30`, between the two, so text stays readable.
 
 How it works:
 
 - **Base grid.** Drawn once per resize into an offscreen canvas, then copied
   each frame. This keeps the per-frame cost low.
 - **Flashlight.** A circular reveal follows the pointer. It has a radial
-  scrim, a brighter dot layer with per-cell hash-based variation, a hairline
-  ring, and a crosshair. The cell coordinate is shown beside the reticle.
-  The radius is `min(160px, 32% of the smaller viewport side)`.
+  scrim, a brighter dot layer with per-cell hash-based variation, and a
+  streak layer. The radius is `min(160px, 32% of the smaller viewport side)`.
 - **Splashes.** Pointer movement spawns square particles that snap to the
   grid, then fall under gravity. Each particle fades over its lifetime.
 - **Dash streaks.** 1px vertical dashes fall through the revealed columns.
 - **Limits.** At most 220 particles and 22 streaks at once.
 - **Theme.** Dark and light palettes are defined in one `PALETTE` object.
 - **Reduced motion.** Splashes, streaks and the rotation stop. The flashlight
-  reveal stays.
+  reveal and the crosshair stay, because the crosshair is the cursor.
+
+### Cursor
+
+On devices with a precise hover pointer (`(hover: hover) and (pointer: fine)`),
+the native cursor is hidden and the crosshair replaces it:
+
+- **Hiding the native cursor.** `app/src/index.css` sets `cursor: none !important`
+  on `html` and every element inside the same media query. Touch and other
+  coarse-pointer devices keep their normal cursor behaviour.
+- **Crosshair.** A DOM element at `z-50`, moved with `transform: translate3d`
+  on each pointer move. Its centre is the exact hot spot, so a click lands on
+  whatever is under the crosshair. The two arms are 1px lines in the violet
+  accent with a 2px coral centre dot.
+- **Interactive state.** The crosshair checks what is under the pointer
+  (`document.elementFromPoint`) on each move and on scroll. Over `a[href]`,
+  `button`, `[role="button"]`, form controls, `label`, or an element with
+  `data-cursor="interactive"`, the arms scale to 1.35.
+- **Pressed state.** While the mouse button is down the arms scale to 0.8.
+- **Label.** A small label beside the crosshair shows the grid cell under the
+  pointer as `column:row`.
+- **Leaving the window** hides the crosshair (`pointerleave` and `blur`).
+
+Use `data-cursor="interactive"` on any custom clickable element that is not
+reached by the selector above.
 
 ## 5. Verification
 
@@ -125,6 +153,11 @@ for pointer movement, and `Page.captureScreenshot` for images. Checks covered:
 - the 390px mobile viewport, checked for horizontal overflow
 - hover over the text and over the shader, and a click on the GitHub link to
   confirm the overlay does not block it
+- the native cursor is `none` on `body` and on links, and the crosshair is
+  positioned at the pointer
+- over a link the crosshair scales to 1.35, while pressed it scales to 0.8,
+  and `document.elementFromPoint` at the pointer returns the GitHub link
+- the crosshair hides when the pointer leaves the window
 - `prefers-reduced-motion` emulated with `Emulation.setEmulatedMedia`
 - console exceptions (none were seen in the final runs)
 - the live site after deploy, by size and by DOM markers
@@ -154,6 +187,8 @@ The test scripts were temporary and are not in the repo.
   template is not available in that version.
 - The flashlight label and grid use canvas text at 10px. This is fine on
   desktop. It has not been tested on high-DPI mobile devices.
+- The custom cursor depends on CSS `cursor: none`. Browser-owned UI such as
+  scrollbars may still show the operating system cursor. This was not tested.
 - Screenshot checks ran in headless Edge with SwiftShader WebGL. Real GPU
   output may differ in timing, though not in layout.
 - `robots.txt` disallows all crawlers, and the page carries `noindex` meta

@@ -31,3 +31,15 @@
     background: rgb(0 0 0 / 0.15);
   }
 }
+
+/*
+ * On devices with a precise hover pointer, the native cursor is replaced by
+ * the crosshair drawn in GridBackdrop. Touch and other coarse-pointer
+ * devices keep their normal behaviour.
+ */
+@media (hover: hover) and (pointer: fine) {
+  html,
+  html * {
+    cursor: none !important;
+  }
+}

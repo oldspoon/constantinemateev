@@ -34,6 +34,13 @@ const GRAVITY = 1500
 const MAX_PARTICLES = 220
 const MAX_STREAKS = 22
 
+// Elements that get the "interactive" crosshair state when hovered.
+const INTERACTIVE_SELECTOR =
+  'a[href], button, [role="button"], input, select, textarea, label, [data-cursor="interactive"]'
+
+// Only devices with a precise hover pointer get the custom crosshair cursor.
+const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)"
+
 const PALETTE = {
   dark: {
     base: "255, 255, 255",
@@ -64,24 +71,34 @@ function hash(x: number, y: number) {
 }
 
 /**
- * Site-wide dot-matrix backdrop. A faint, always-on 8px field sits behind
- * the page content; a circular flashlight reveals a brighter layer over any
- * part of the site. Moving the pointer throws square pixels off the grid and
- * falling dash marks run down the revealed columns.
+ * Site-wide dot-matrix backdrop with a crosshair cursor.
+ *
+ * - A faint 8px dot grid sits behind the page content (canvas, z-20).
+ * - A circular flashlight reveals a brighter grid layer around the pointer.
+ * - The native cursor is hidden on fine-pointer devices (see index.css) and
+ *   the crosshair (a DOM element, z-50) is the pointer. Its centre is the
+ *   exact hot spot, so clicks and hovers land where the crosshair is.
+ * - Over links and buttons the crosshair opens up and gets a "pressed" state
+ *   on mouse down. Its label shows the grid cell under the pointer.
  */
 export default function GridBackdrop({ theme }: GridBackdropProps) {
-  const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const cursorRef = useRef<HTMLDivElement>(null)
+  const armsRef = useRef<SVGGElement>(null)
+  const labelRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    const host = hostRef.current
     const canvas = canvasRef.current
     const ctx = canvas?.getContext("2d")
+    const cursor = cursorRef.current
+    const arms = armsRef.current
+    const label = labelRef.current
 
-    if (!host || !canvas || !ctx) return
+    if (!canvas || !ctx || !cursor || !arms || !label) return
 
     const palette = PALETTE[theme]
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const finePointer = window.matchMedia(FINE_POINTER_QUERY)
 
     let reduceMotion = motionQuery.matches
     let width = 0
@@ -94,6 +111,10 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
     let streakClock = 0
 
     const pointer = { x: 0, y: 0, active: false, reveal: 0, burst: 0 }
+    let overInteractive = false
+    let pressed = false
+    let cursorVisible = false
+    let lastCell = ""
 
     const base = document.createElement("canvas")
     const baseCtx = base.getContext("2d")
@@ -119,6 +140,43 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
         for (let y = CELL / 2; y < height; y += CELL) {
           baseCtx.fillRect(x - DOT / 2, y - DOT / 2, DOT, DOT)
         }
+      }
+    }
+
+    // Crosshair arms scale with state: 1 idle, 1.35 over an interactive
+    // element, 0.8 while the mouse button is held.
+    const applyArmScale = () => {
+      const scale = pressed ? 0.8 : overInteractive ? 1.35 : 1
+
+      arms.style.transform = `scale(${scale})`
+    }
+
+    const setCursorVisible = (visible: boolean) => {
+      const next = visible && finePointer.matches
+
+      if (next === cursorVisible) return
+      cursorVisible = next
+      cursor.style.opacity = next ? "1" : "0"
+    }
+
+    // Moves the crosshair to the pointer and refreshes its state. The DOM
+    // writes only happen when something actually changes.
+    const updateCursor = () => {
+      cursor.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0)`
+
+      const hit = document.elementFromPoint(pointer.x, pointer.y)
+      const interactive = !!hit?.closest(INTERACTIVE_SELECTOR)
+
+      if (interactive !== overInteractive) {
+        overInteractive = interactive
+        applyArmScale()
+      }
+
+      const cell = `${Math.floor(pointer.x / CELL)}:${Math.floor(pointer.y / CELL)}`
+
+      if (cell !== lastCell) {
+        lastCell = cell
+        label.textContent = cell
       }
     }
 
@@ -153,6 +211,8 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       pointer.x = event.clientX
       pointer.y = event.clientY
       pointer.active = true
+      setCursorVisible(true)
+      updateCursor()
 
       if (distance < 0.5) return
 
@@ -165,18 +225,34 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       pointer.y = event.clientY
       pointer.active = true
       pointer.burst = 1
+      pressed = true
+      setCursorVisible(true)
+      updateCursor()
+      applyArmScale()
       spawn(16)
+    }
+
+    const onPointerUp = (event: PointerEvent) => {
+      pressed = false
+      applyArmScale()
+
+      if (event.pointerType !== "mouse") onPointerLeave()
     }
 
     const onPointerLeave = () => {
       pointer.active = false
+      pressed = false
+      setCursorVisible(false)
+      applyArmScale()
     }
 
-    const onPointerUp = (event: PointerEvent) => {
-      if (event.pointerType !== "mouse") onPointerLeave()
+    // Keeps the interactive state correct when the page scrolls under a
+    // stationary pointer.
+    const onScroll = () => {
+      if (pointer.active) updateCursor()
     }
 
-    const drawScrim = (radius: number, reveal: number) => {
+    const drawScrim = (radius: number) => {
       const scrim = theme === "dark" ? "9, 9, 11" : "255, 255, 255"
       const gradient = ctx.createRadialGradient(
         pointer.x,
@@ -187,8 +263,8 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
         radius,
       )
 
-      gradient.addColorStop(0, `rgba(${scrim}, ${0.8 * reveal})`)
-      gradient.addColorStop(0.72, `rgba(${scrim}, ${0.55 * reveal})`)
+      gradient.addColorStop(0, `rgba(${scrim}, ${0.8 * pointer.reveal})`)
+      gradient.addColorStop(0.72, `rgba(${scrim}, ${0.55 * pointer.reveal})`)
       gradient.addColorStop(1, `rgba(${scrim}, 0)`)
       ctx.fillStyle = gradient
       ctx.beginPath()
@@ -274,46 +350,6 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       }
     }
 
-    const drawReticle = (radius: number, reveal: number) => {
-      const cx = pointer.x
-      const cy = pointer.y
-      const gap = 6
-      const arm = 18
-
-      ctx.lineWidth = 1
-      ctx.strokeStyle = `rgba(${palette.violet}, ${0.75 * reveal})`
-      ctx.beginPath()
-      ctx.moveTo(cx - gap - arm, cy)
-      ctx.lineTo(cx - gap, cy)
-      ctx.moveTo(cx + gap, cy)
-      ctx.lineTo(cx + gap + arm, cy)
-      ctx.moveTo(cx, cy - gap - arm)
-      ctx.lineTo(cx, cy - gap)
-      ctx.moveTo(cx, cy + gap)
-      ctx.lineTo(cx, cy + gap + arm)
-      ctx.stroke()
-
-      ctx.strokeStyle = `rgba(${palette.violet}, ${0.35 * reveal})`
-      ctx.beginPath()
-      ctx.arc(cx, cy, radius - 0.5, 0, Math.PI * 2)
-      ctx.stroke()
-
-      ctx.fillStyle = `rgba(${palette.coral}, ${0.95 * reveal})`
-      ctx.fillRect(cx - 1, cy - 1, 2, 2)
-
-      if (reveal > 0.5) {
-        const label = `${Math.floor(cx / CELL)}:${Math.floor(cy / CELL)}`
-        const labelX = cx + 24
-        const labelY = cy + 20
-
-        if (labelX + 48 < width && labelY + 12 < height) {
-          ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-          ctx.fillStyle = `rgba(${palette.violet}, ${0.7 * reveal})`
-          ctx.fillText(label, labelX, labelY)
-        }
-      }
-    }
-
     const render = (now: number) => {
       const delta = Math.min(0.05, (now - lastFrame) / 1000)
 
@@ -325,16 +361,13 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       pointer.reveal += ((pointer.active ? 1 : 0) - pointer.reveal) * Math.min(1, delta * 8)
       pointer.burst *= Math.max(0, 1 - delta * 3.5)
 
-      const reveal = pointer.reveal
-
-      if (reveal > 0.01 && width > 0 && height > 0) {
+      if (pointer.reveal > 0.01 && width > 0 && height > 0) {
         const baseRadius = Math.min(FLASHLIGHT_RADIUS, Math.min(width, height) * 0.32)
-        const radius = baseRadius * (0.6 + 0.4 * reveal)
+        const radius = baseRadius * (0.6 + 0.4 * pointer.reveal)
 
-        drawScrim(radius, reveal)
-        drawGrid(radius, reveal)
-        drawStreaks(radius, reveal, delta)
-        drawReticle(radius, reveal)
+        drawScrim(radius)
+        drawGrid(radius, pointer.reveal)
+        drawStreaks(radius, pointer.reveal, delta)
       } else {
         streaks = []
       }
@@ -375,12 +408,14 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
     }
 
     resize()
+    applyArmScale()
 
     const observer = new ResizeObserver(resize)
 
     observer.observe(document.documentElement)
     motionQuery.addEventListener("change", onMotionChange)
     window.addEventListener("resize", resize)
+    window.addEventListener("scroll", onScroll, { passive: true })
     window.addEventListener("pointermove", onPointerMove, { passive: true })
     window.addEventListener("pointerdown", onPointerDown, { passive: true })
     window.addEventListener("pointerup", onPointerUp, { passive: true })
@@ -397,6 +432,7 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       observer.disconnect()
       motionQuery.removeEventListener("change", onMotionChange)
       window.removeEventListener("resize", resize)
+      window.removeEventListener("scroll", onScroll)
       window.removeEventListener("pointermove", onPointerMove)
       window.removeEventListener("pointerdown", onPointerDown)
       window.removeEventListener("pointerup", onPointerUp)
@@ -405,9 +441,45 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
     }
   }, [theme])
 
+  const palette = PALETTE[theme]
+
   return (
-    <div ref={hostRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-20">
-      <canvas ref={canvasRef} className="h-full w-full" />
-    </div>
+    <>
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-20">
+        <canvas ref={canvasRef} className="h-full w-full" />
+      </div>
+
+      <div
+        ref={cursorRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed top-0 left-0 z-50 opacity-0 transition-opacity duration-150 will-change-transform"
+        style={{
+          color: `rgb(${palette.violet})`,
+          filter: "drop-shadow(0 0 1px rgb(0 0 0 / 0.5))",
+        }}
+      >
+        <svg
+          className="absolute -top-6 -left-6 overflow-visible"
+          width="48"
+          height="48"
+          viewBox="-24 -24 48 48"
+        >
+          <g
+            ref={armsRef}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            style={{ transition: "transform 120ms ease-out" }}
+          >
+            <path d="M-24 0H-6M6 0H24M0 -24V-6M0 6V24" />
+          </g>
+          <rect x="-1" y="-1" width="2" height="2" fill={`rgb(${palette.coral})`} />
+        </svg>
+        <span
+          ref={labelRef}
+          className="absolute top-4 left-7 font-mono text-[10px] leading-none whitespace-nowrap"
+        />
+      </div>
+    </>
   )
 }

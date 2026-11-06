@@ -88,13 +88,21 @@ project list and the shader panel all share one grid:
 - a faint, always-on 8px dot grid (2px square pixels), white on near-black and
   inverted for the light theme;
 - a circular flashlight that follows the pointer anywhere on the site and
-  reveals a brighter layer through a soft scrim, with a hairline ring and a
-  crosshair that labels the current grid cell;
+  reveals a brighter layer through a soft scrim;
 - square pixels that lift off grid points as the pointer moves and fall under
   gravity, plus falling 1px dash marks in the revealed columns.
 
 Content sits above the backdrop (`z-30`) and clicks pass straight through
-it. The canvas is capped at ~220 particles and 22 dashes, and
+it.
+
+### Crosshair cursor
+
+On fine-pointer devices the native cursor is hidden (`app/src/index.css`) and
+a crosshair takes its place. Its centre is the hot spot, so clicks land where
+it points. It enlarges over links and buttons, shrinks while the mouse is
+pressed, and labels the grid cell under the pointer. Touch devices are not
+affected. See [`docs/how-it-was-built.md`](docs/how-it-was-built.md#cursor) for
+details. The canvas is capped at ~220 particles and 22 dashes, and
 `prefers-reduced-motion` turns off splashes, dashes and rotation while keeping
 the flashlight reveal.
 
