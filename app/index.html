@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oldspoon</title>
+<meta name="description" content="Software engineer building conversational AI end to end: Rasa NLU, a stateless action server, and the React client in front of it.">
+<meta name="author" content="oldspoon">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fdfdfc" media="(prefers-color-scheme: light)">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="oldspoon">
+<meta property="og:description" content="Software engineer building conversational AI end to end: Rasa NLU, a stateless action server, and the React client in front of it.">
+<meta property="og:url" content="https://oldspoon.github.io/">
+<meta property="og:site_name" content="oldspoon">
+<meta name="twitter:card" content="summary">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon-32x32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="canonical" href="https://oldspoon.github.io/">
+
+<script>
+  (function () {
+    try {
+      var stored = window.localStorage.getItem("oldspoon-theme");
+      var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      var root = document.documentElement;
+      root.dataset.theme = dark ? "dark" : "light";
+      root.style.colorScheme = dark ? "dark" : "light";
+      root.style.backgroundColor = dark ? "#000000" : "#ffffff";
+    } catch (error) {
+      /* Defaults to the dark theme declared on <html>. */
+    }
+  })();
+</script>
+</head>
+<body>
+<div id="root"></div>
+<noscript>
+  <div style="padding: 2rem; font-family: ui-monospace, monospace; line-height: 1.7">
+    <h1>oldspoon — software engineer</h1>
+    <p>This page needs JavaScript to render. The projects are still reachable directly:</p>
+    <ul>
+      <li>
+        <a href="https://github.com/oldspoon/Rasa-AI-Assistant">rasa-ai-assistant</a>
+        —
+        <a href="https://oldspoon.github.io/Rasa-AI-Assistant/">(demo)</a>
+        <a href="https://github.com/oldspoon/Rasa-AI-Assistant">(source)</a>
+      </li>
+      <li>
+        <a href="https://github.com/oldspoon/Tennis-Game">tennis-game</a>
+        —
+        <a href="https://github.com/oldspoon/Tennis-Game">(source)</a>
+      </li>
+    </ul>
+  </div>
+</noscript>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
