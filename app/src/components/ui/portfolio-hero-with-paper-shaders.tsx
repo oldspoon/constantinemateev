@@ -168,14 +168,7 @@ export default function PortfolioHero() {
             <ul className="mt-4 max-w-md space-y-5">
               {projects.map((project) => (
                 <li key={project.name} className="text-sm leading-relaxed">
-                  <a
-                    href={project.source}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`font-normal ${linkClass}`}
-                  >
-                    {project.name}
-                  </a>
+                  <span className="font-normal">{project.name}</span>
                   <span className={faint}>: </span>
                   <span>{project.description}</span>
                   <span className={faint}> | </span>

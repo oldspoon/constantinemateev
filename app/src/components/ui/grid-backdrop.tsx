@@ -10,9 +10,17 @@ type GridBackdropProps = {
 const CELL = 8
 const DOT = 2
 const FLASHLIGHT_RADIUS = 160
+// How far the dots around the pointer bulge outwards at full burst, so the
+// grid reads as a soft bubble around the cursor while it moves.
+const BUBBLE_PUSH = 14
 
 // Only devices with a precise hover pointer get the custom crosshair cursor.
 const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)"
+
+// Elements that open up the crosshair, so links and buttons still read as
+// clickable now that the native hand is gone.
+const INTERACTIVE_SELECTOR =
+  'a[href], button, [role="button"], input, select, textarea, label, summary, [data-cursor="interactive"]'
 
 const PALETTE = {
   dark: {
@@ -32,18 +40,22 @@ const PALETTE = {
  * - A circular flashlight reveals a brighter layer of the same dots around the
  *   pointer. Every dot is the same colour and size; only its distance from the
  *   pointer changes how bright it is.
- * - On fine-pointer devices the crosshair (a DOM element, z-50) replaces the
- *   native cursor over plain surfaces. Its centre is the exact hot spot, so
- *   clicks and hovers land where the crosshair is.
- * - Links, buttons, form controls and text keep their native cursor (hand or
- *   I-beam) and the crosshair steps aside, so hovering and selecting text feel
- *   like a normal website.
+ * - The dots around the pointer bulge outwards into a soft bubble while the
+ *   pointer moves, and settle back when it stops.
+ * - On fine-pointer devices the crosshair (a DOM element, z-50) is the cursor
+ *   everywhere. Its centre is the exact hot spot, so clicks and hovers land
+ *   where the crosshair is.
+ * - The arms open up over links, buttons and form controls, shrink while the
+ *   mouse button is held, and the label shows the grid cell under the pointer.
  */
 export default function GridBackdrop({ theme }: GridBackdropProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
   const armsRef = useRef<SVGGElement>(null)
   const labelRef = useRef<HTMLSpanElement>(null)
+  // Lives outside the effect so a theme change does not lose the pointer: the
+  // crosshair has to stay visible while the flash-light is rebuilt.
+  const pointerRef = useRef({ x: 0, y: 0, active: false, reveal: 0, burst: 0 })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -64,17 +76,12 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
     let lastFrame = performance.now()
     let frame = 0
 
-    const pointer = { x: 0, y: 0, active: false, reveal: 0 }
+    const pointer = pointerRef.current
     let pressed = false
-    let pointerVisible = false
+    let overInteractive = false
+    let pointerVisible = pointer.active
     let crosshairShown = false
-    let nativeCursor = false
     let lastCell = ""
-
-    // Computed cursor styles are only read when the element under the pointer
-    // changes, so a pointer move costs at most one style read.
-    let probedElement: Element | null = null
-    let probedNative = false
 
     const base = document.createElement("canvas")
     const baseCtx = base.getContext("2d")
@@ -103,9 +110,10 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       }
     }
 
-    // The crosshair is only shown when there is no native cursor to defer to.
+    // The crosshair is the cursor, so it is shown for as long as a fine pointer
+    // is inside the window. Nothing is allowed to take its place.
     const applyCursorState = () => {
-      const visible = pointerVisible && finePointer.matches && !nativeCursor
+      const visible = pointerVisible && finePointer.matches
 
       if (visible === crosshairShown) return
 
@@ -113,22 +121,12 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       cursor.style.opacity = visible ? "1" : "0"
     }
 
-    // The arms shrink while the mouse button is held.
+    // The arms open up over interactive elements and shrink while the mouse
+    // button is held, so the crosshair still signals what is clickable.
     const applyArmScale = () => {
-      arms.style.transform = `scale(${pressed ? 0.8 : 1})`
-    }
+      const scale = pressed ? 0.8 : overInteractive ? 1.35 : 1
 
-    // The stylesheet is the single source of truth: any element that keeps a
-    // visible cursor (links, buttons, form controls, text) also keeps it here,
-    // and the crosshair hides instead of stacking on top of it.
-    const usesNativeCursor = (hit: Element | null) => {
-      if (!hit) return false
-      if (hit === probedElement) return probedNative
-
-      probedElement = hit
-      probedNative = window.getComputedStyle(hit).cursor !== "none"
-
-      return probedNative
+      arms.style.transform = `scale(${scale})`
     }
 
     // Moves the crosshair to the pointer and refreshes its state. The DOM
@@ -137,11 +135,11 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       cursor.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0)`
 
       const hit = document.elementFromPoint(pointer.x, pointer.y)
-      const native = usesNativeCursor(hit)
+      const interactive = !!hit?.closest(INTERACTIVE_SELECTOR)
 
-      if (native !== nativeCursor) {
-        nativeCursor = native
-        applyCursorState()
+      if (interactive !== overInteractive) {
+        overInteractive = interactive
+        applyArmScale()
       }
 
       const cell = `${Math.floor(pointer.x / CELL)}:${Math.floor(pointer.y / CELL)}`
@@ -153,12 +151,18 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
     }
 
     const onPointerMove = (event: PointerEvent) => {
+      const distance = Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y)
+
       pointer.x = event.clientX
       pointer.y = event.clientY
       pointer.active = true
       pointerVisible = true
       updateCursor()
       applyCursorState()
+
+      if (distance < 0.5) return
+
+      pointer.burst = Math.min(1, pointer.burst + distance / 140 + 0.06)
     }
 
     const onPointerDown = (event: PointerEvent) => {
@@ -166,6 +170,7 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       pointer.y = event.clientY
       pointer.active = true
       pointerVisible = true
+      pointer.burst = 1
       pressed = true
       applyArmScale()
       updateCursor()
@@ -181,9 +186,8 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
     const onPointerLeave = () => {
       pointer.active = false
       pressed = false
+      overInteractive = false
       pointerVisible = false
-      nativeCursor = false
-      probedElement = null
       applyArmScale()
       applyCursorState()
     }
@@ -233,9 +237,17 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
 
           const falloff = 1 - distance / radius
           const alpha = Math.pow(falloff, 0.4) * reveal * 0.85
+          const push = reduceMotion ? 0 : pointer.burst * BUBBLE_PUSH * falloff
+          const offsetX = distance > 0 ? (dx / distance) * push : 0
+          const offsetY = distance > 0 ? (dy / distance) * push : 0
 
           ctx.fillStyle = `rgba(${palette.grid}, ${alpha})`
-          ctx.fillRect(x - DOT / 2, y - DOT / 2, DOT, DOT)
+          ctx.fillRect(
+            x + offsetX - DOT / 2,
+            y + offsetY - DOT / 2,
+            DOT,
+            DOT,
+          )
         }
       }
     }
@@ -254,6 +266,12 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
       pointer.reveal +=
         (target - pointer.reveal) * (reduceMotion ? 1 : Math.min(1, delta * 8))
 
+      if (reduceMotion) {
+        pointer.burst = 0
+      } else {
+        pointer.burst *= Math.max(0, 1 - delta * 3.5)
+      }
+
       if (pointer.reveal > 0.01 && width > 0 && height > 0) {
         const baseRadius = Math.min(FLASHLIGHT_RADIUS, Math.min(width, height) * 0.32)
         const radius = baseRadius * (0.6 + 0.4 * pointer.reveal)
@@ -267,17 +285,21 @@ export default function GridBackdrop({ theme }: GridBackdropProps) {
 
     const onMotionChange = () => {
       reduceMotion = motionQuery.matches
+
+      if (reduceMotion) pointer.burst = 0
     }
 
     resize()
     applyArmScale()
 
-    // The effect restarts on theme change. Hide any crosshair left over from the
-    // previous run: the pointer has to move again before it is shown.
+    // The effect restarts on theme change, so restore the crosshair exactly
+    // where the pointer already is instead of leaving it invisible until the
+    // next move.
     cursor.style.opacity = "0"
+    cursor.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0)`
     crosshairShown = false
-    nativeCursor = false
-    pointerVisible = false
+    updateCursor()
+    applyCursorState()
 
     const observer = new ResizeObserver(resize)
 

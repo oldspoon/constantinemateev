@@ -114,41 +114,45 @@ How it works:
 - **Uniform dots.** Every dot is 2px and uses the same violet. Alpha depends
   only on the distance from the pointer (`(1 - d / r) ** 0.4`), so the reveal
   is a smooth falloff with no random colour, size or position variation.
+- **Bubble.** Pointer movement fills a `burst` value (`+ distance / 140 + 0.06`
+  per move, clamped to 1) which decays at `1 - delta * 3.5`. It pushes each dot
+  radially outwards by `burst * 14px * falloff`, so the grid bulges into a soft
+  bubble around the cursor while it moves and returns to the exact 8px grid
+  when it stops. A click sets `burst` to 1 for a pop.
 - **No projectiles.** There are no particles, sparks or falling dashes: once
-  the pointer stops, the canvas stops changing.
+  `burst` decays, the canvas is pixel-identical between frames.
 - **Theme.** Dark and light palettes are defined in one `PALETTE` object.
-- **Reduced motion.** The shader rotation stops and the reveal switches on and
-  off instantly instead of easing. The crosshair stays, because the crosshair
-  is the cursor.
+- **Reduced motion.** The shader rotation and the bubble stop, and the reveal
+  switches on and off instantly instead of easing. The crosshair stays, because
+  the crosshair is the cursor.
 
 ### Cursor
 
 On devices with a precise hover pointer (`(hover: hover) and (pointer: fine)`),
-the crosshair replaces the native cursor on plain surfaces:
+the crosshair is the only cursor:
 
-- **Native cursor where it helps.** `app/src/index.css` sets `cursor: none` on
-  `html` and `body` only, then gives links, buttons, `[role="button"]`,
-  `summary`, labels and form controls `cursor: pointer`, and text blocks
-  (`p`, `li`, `ul`, `ol`, headings, `blockquote`, `th`/`td`, text inputs)
-  `cursor: text`. Touch and other coarse-pointer devices keep their normal
-  behaviour.
+- **Always on.** `app/src/index.css` sets `cursor: none !important` on `html`
+  and every descendant, so nothing can override it and the native cursor never
+  reappears, not even over links or text. Touch and other coarse-pointer
+  devices keep their normal behaviour.
 - **Crosshair.** A DOM element at `z-50`, moved with `transform: translate3d`
   on each pointer move. Its centre is the exact hot spot, so a click lands on
   whatever is under the crosshair. The two arms are 1px lines in the violet
   accent with a 2px violet centre dot.
-- **When it steps aside.** The component reads the computed `cursor` of the
-  element under the pointer (`document.elementFromPoint` followed by
-  `getComputedStyle`) and fades the crosshair out whenever that element keeps a
-  native cursor. The stylesheet is therefore the single source of truth: add a
-  `cursor` rule and the crosshair follows. Results are cached per element, so a
-  pointer move costs at most one style read.
+- **Hover state.** The component checks what is under the pointer
+  (`document.elementFromPoint`) on each move and on scroll. Over `a[href]`,
+  `button`, `[role="button"]`, form controls, `label`, `summary` or an element
+  with `data-cursor="interactive"`, the arms scale to 1.35 so the crosshair
+  visibly opens over anything clickable.
 - **Pressed state.** While the mouse button is down the arms scale to 0.8.
 - **Label.** A small label beside the crosshair shows the grid cell under the
   pointer as `column:row`.
-- **Leaving the window** hides the crosshair (`pointerleave` and `blur`).
+- **Leaving the window** hides the crosshair (`pointerleave` and `blur`). A
+  theme change rebuilds the canvas but keeps the crosshair where it is instead
+  of hiding it until the next move.
 
 Use `data-cursor="interactive"` on any custom clickable element that is not
-reached by the selector above; it gets the native hand and hides the crosshair.
+reached by the selector above.
 
 ## 5. Verification
 
@@ -159,19 +163,22 @@ for pointer movement and presses, a Playwright script for assertions, and
 
 - `npm run typecheck` and `npm run build` after each change
 - dark and light themes, including the toggle
-- the 390px mobile viewport, checked for horizontal overflow
-- hover over the text and over the shader, and a click on the GitHub link to
-  confirm the overlay does not block it
-- over text the element under the pointer has `cursor: text` and the crosshair
-  is hidden; over a link it has `cursor: pointer` and the crosshair is hidden;
-- over the background and the shader panel the native cursor is `none` and the
-  crosshair is visible, positioned at the pointer;
-- the canvas is pixel-identical between two frames while the pointer is still,
-  which confirms no particles or dashes are left running;
+- the 390px mobile viewport, checked for horizontal overflow, and no crosshair
+  on touch
+- the native cursor is `none` on `body`, on text and on links, and the
+  crosshair is visible and positioned at the pointer in all of those places
+- over a link the arms scale to 1.35 and over plain background to 1
+- the crosshair stays visible through a theme change, at the same position
+- the canvas is pixel-identical between two frames once the pointer is still,
+  which confirms the bubble decays and no particles or dashes are left running;
+  while the pointer moves, rows of dots are measurably displaced outwards and
+  return to an exact 8px pitch after it stops
 - a 300px window around the pointer contains no red pixels after fast movement
-  in both themes; only violet dots are revealed;
-- the crosshair shrinks to 0.8 while the mouse is pressed;
-- a click on the GitHub link opens the link, so the overlay never blocks it;
+  in both themes; only violet dots are revealed
+- the crosshair shrinks to 0.8 while the mouse is pressed
+- a click on the GitHub link opens the link, so the overlay never blocks it
+- each project row contains only `(demo)` and `(source)` links; the project name
+  is text, not an anchor
 - `prefers-reduced-motion` emulated with `Emulation.setEmulatedMedia`
 - console exceptions (none were seen in the final runs)
 - the live site after deploy, by size and by DOM markers
@@ -201,9 +208,10 @@ The test scripts were temporary and are not in the repo.
   template is not available in that version.
 - The flashlight label is 10px DOM text. This is fine on desktop. It has not
   been tested on high-DPI mobile devices.
-- The custom cursor depends on CSS `cursor: none` on `html`/`body`. Browser-owned
+- The custom cursor depends on CSS `cursor: none !important`. Browser-owned
   UI such as scrollbars may still show the operating system cursor. This was not
-  tested.
+  tested. Text selection has no I-beam either, only the crosshair, which is the
+  intended trade-off of the always-on cursor.
 - Screenshot checks ran in headless Edge with SwiftShader WebGL. Real GPU
   output may differ in timing, though not in layout.
 - `robots.txt` disallows all crawlers, and the page carries `noindex` meta

@@ -88,7 +88,9 @@ project list and the shader panel all share one grid:
 - a faint, always-on 8px dot grid of 2px square pixels in the violet accent
   (`#B897FB` on near-black, `#6D28D9` on white);
 - a circular flashlight that follows the pointer anywhere on the site and
-  reveals a brighter layer of the same dots through a soft scrim.
+  reveals a brighter layer of the same dots through a soft scrim;
+- a bubble: while the pointer moves, the dots around it bulge outwards and
+  settle back into the grid when it stops.
 
 Every dot is the same colour and size. Only the distance from the pointer
 changes how bright a dot is, so there are no random accents and no particles
@@ -97,16 +99,22 @@ straight through it.
 
 ### Crosshair cursor
 
-On fine-pointer devices a crosshair replaces the native cursor on plain
-surfaces (`app/src/index.css` sets `cursor: none` on `html`/`body`). Its centre
-is the hot spot, so clicks land where it points. It shrinks while the mouse is
-pressed and labels the grid cell under the pointer. Over links, buttons and
-form controls the crosshair steps aside for the native hand, and over text for
-the native I-beam, so hovering and selecting text behave like a normal site.
-Touch devices are not affected. See
+On fine-pointer devices the crosshair is the cursor, everywhere and at all
+times: `app/src/index.css` sets `cursor: none !important` on `html` and every
+descendant, so no element or user-agent style can bring the native cursor
+back. Its centre is the hot spot, so clicks land where it points. It opens up
+over links and buttons (arms scale to 1.35), shrinks while the mouse is
+pressed, and labels the grid cell under the pointer. Touch devices are not
+affected. See
 [`docs/how-it-was-built.md`](docs/how-it-was-built.md#cursor) for details.
-`prefers-reduced-motion` turns off the shader rotation and switches the
-flashlight on and off instantly instead of easing it.
+`prefers-reduced-motion` turns off the shader rotation and the bubble, and
+switches the flashlight on and off instantly instead of easing it.
+
+### Project links
+
+A project in the list is plain text; only `(demo)` and `(source)` are links.
+The project name does not link anywhere, so the list has exactly one link per
+reachable destination.
 
 ## Deployment
 
