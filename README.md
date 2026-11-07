@@ -85,26 +85,28 @@ panel moves above the CV text and keeps a fixed 38vh height.
 `pointer-events: none`) that sits over the whole page, so the CV text, the
 project list and the shader panel all share one grid:
 
-- a faint, always-on 8px dot grid (2px square pixels), white on near-black and
-  inverted for the light theme;
+- a faint, always-on 8px dot grid of 2px square pixels in the violet accent
+  (`#B897FB` on near-black, `#6D28D9` on white);
 - a circular flashlight that follows the pointer anywhere on the site and
-  reveals a brighter layer through a soft scrim;
-- square pixels that lift off grid points as the pointer moves and fall under
-  gravity, plus falling 1px dash marks in the revealed columns.
+  reveals a brighter layer of the same dots through a soft scrim.
 
-Content sits above the backdrop (`z-30`) and clicks pass straight through
-it.
+Every dot is the same colour and size. Only the distance from the pointer
+changes how bright a dot is, so there are no random accents and no particles
+or spark effects. Content sits above the backdrop (`z-30`) and clicks pass
+straight through it.
 
 ### Crosshair cursor
 
-On fine-pointer devices the native cursor is hidden (`app/src/index.css`) and
-a crosshair takes its place. Its centre is the hot spot, so clicks land where
-it points. It enlarges over links and buttons, shrinks while the mouse is
-pressed, and labels the grid cell under the pointer. Touch devices are not
-affected. See [`docs/how-it-was-built.md`](docs/how-it-was-built.md#cursor) for
-details. The canvas is capped at ~220 particles and 22 dashes, and
-`prefers-reduced-motion` turns off splashes, dashes and rotation while keeping
-the flashlight reveal.
+On fine-pointer devices a crosshair replaces the native cursor on plain
+surfaces (`app/src/index.css` sets `cursor: none` on `html`/`body`). Its centre
+is the hot spot, so clicks land where it points. It shrinks while the mouse is
+pressed and labels the grid cell under the pointer. Over links, buttons and
+form controls the crosshair steps aside for the native hand, and over text for
+the native I-beam, so hovering and selecting text behave like a normal site.
+Touch devices are not affected. See
+[`docs/how-it-was-built.md`](docs/how-it-was-built.md#cursor) for details.
+`prefers-reduced-motion` turns off the shader rotation and switches the
+flashlight on and off instantly instead of easing it.
 
 ## Deployment
 

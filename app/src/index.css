@@ -33,13 +33,55 @@
 }
 
 /*
- * On devices with a precise hover pointer, the native cursor is replaced by
- * the crosshair drawn in GridBackdrop. Touch and other coarse-pointer
- * devices keep their normal behaviour.
+ * On devices with a precise hover pointer, the crosshair drawn in GridBackdrop
+ * replaces the native cursor on plain surfaces only. Links, buttons, form
+ * controls and text keep their familiar cursors, so the page still behaves
+ * like a normal website: the crosshair steps aside over them.
+ *
+ * GridBackdrop reads the computed cursor of the element under the pointer, so
+ * these rules are the single source of truth for when the crosshair is hidden.
+ * Touch and other coarse-pointer devices keep their normal behaviour.
  */
 @media (hover: hover) and (pointer: fine) {
   html,
-  html * {
-    cursor: none !important;
+  body {
+    cursor: none;
+  }
+
+  a[href],
+  button,
+  [role="button"],
+  summary,
+  label,
+  select,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  [data-cursor="interactive"] {
+    cursor: pointer;
+  }
+
+  p,
+  li,
+  ul,
+  ol,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  figcaption,
+  dd,
+  dt,
+  th,
+  td,
+  input,
+  textarea,
+  [contenteditable="true"] {
+    cursor: text;
   }
 }

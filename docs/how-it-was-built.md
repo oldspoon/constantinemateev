@@ -90,15 +90,16 @@ were read from that page's CSS and rendered output:
 - Near-black background, `#09090B`
 - Thin 1px dash marks, and a soft-edged reveal window
 
-Only the visual language was taken. No code was copied from that site.
+Only the visual language was taken. No code was copied from that site. The
+site later dropped the mark accents, the dashes and the coral: every dot is
+now the same violet and only the flashlight changes a dot's brightness.
 
 ### Implementation
 
 `app/src/components/ui/grid-backdrop.tsx` renders two layers, both fixed to the
 viewport and both with `pointer-events: none`, so links keep receiving clicks:
 
-- a full-viewport `<canvas>` at `z-20` for the dot grid, flashlight, splashes
-  and dash streaks;
+- a full-viewport `<canvas>` at `z-20` for the dot grid and the flashlight;
 - a DOM crosshair at `z-50` that acts as the cursor (see the Cursor section).
 
 The page content sits at `z-30`, between the two, so text stays readable.
@@ -107,57 +108,70 @@ How it works:
 
 - **Base grid.** Drawn once per resize into an offscreen canvas, then copied
   each frame. This keeps the per-frame cost low.
-- **Flashlight.** A circular reveal follows the pointer. It has a radial
-  scrim, a brighter dot layer with per-cell hash-based variation, and a
-  streak layer. The radius is `min(160px, 32% of the smaller viewport side)`.
-- **Splashes.** Pointer movement spawns square particles that snap to the
-  grid, then fall under gravity. Each particle fades over its lifetime.
-- **Dash streaks.** 1px vertical dashes fall through the revealed columns.
-- **Limits.** At most 220 particles and 22 streaks at once.
+- **Flashlight.** A circular reveal follows the pointer: a radial scrim plus a
+  brighter layer of the same violet dots. The radius is
+  `min(160px, 32% of the smaller viewport side)`.
+- **Uniform dots.** Every dot is 2px and uses the same violet. Alpha depends
+  only on the distance from the pointer (`(1 - d / r) ** 0.4`), so the reveal
+  is a smooth falloff with no random colour, size or position variation.
+- **No projectiles.** There are no particles, sparks or falling dashes: once
+  the pointer stops, the canvas stops changing.
 - **Theme.** Dark and light palettes are defined in one `PALETTE` object.
-- **Reduced motion.** Splashes, streaks and the rotation stop. The flashlight
-  reveal and the crosshair stay, because the crosshair is the cursor.
+- **Reduced motion.** The shader rotation stops and the reveal switches on and
+  off instantly instead of easing. The crosshair stays, because the crosshair
+  is the cursor.
 
 ### Cursor
 
 On devices with a precise hover pointer (`(hover: hover) and (pointer: fine)`),
-the native cursor is hidden and the crosshair replaces it:
+the crosshair replaces the native cursor on plain surfaces:
 
-- **Hiding the native cursor.** `app/src/index.css` sets `cursor: none !important`
-  on `html` and every element inside the same media query. Touch and other
-  coarse-pointer devices keep their normal cursor behaviour.
+- **Native cursor where it helps.** `app/src/index.css` sets `cursor: none` on
+  `html` and `body` only, then gives links, buttons, `[role="button"]`,
+  `summary`, labels and form controls `cursor: pointer`, and text blocks
+  (`p`, `li`, `ul`, `ol`, headings, `blockquote`, `th`/`td`, text inputs)
+  `cursor: text`. Touch and other coarse-pointer devices keep their normal
+  behaviour.
 - **Crosshair.** A DOM element at `z-50`, moved with `transform: translate3d`
   on each pointer move. Its centre is the exact hot spot, so a click lands on
   whatever is under the crosshair. The two arms are 1px lines in the violet
-  accent with a 2px coral centre dot.
-- **Interactive state.** The crosshair checks what is under the pointer
-  (`document.elementFromPoint`) on each move and on scroll. Over `a[href]`,
-  `button`, `[role="button"]`, form controls, `label`, or an element with
-  `data-cursor="interactive"`, the arms scale to 1.35.
+  accent with a 2px violet centre dot.
+- **When it steps aside.** The component reads the computed `cursor` of the
+  element under the pointer (`document.elementFromPoint` followed by
+  `getComputedStyle`) and fades the crosshair out whenever that element keeps a
+  native cursor. The stylesheet is therefore the single source of truth: add a
+  `cursor` rule and the crosshair follows. Results are cached per element, so a
+  pointer move costs at most one style read.
 - **Pressed state.** While the mouse button is down the arms scale to 0.8.
 - **Label.** A small label beside the crosshair shows the grid cell under the
   pointer as `column:row`.
 - **Leaving the window** hides the crosshair (`pointerleave` and `blur`).
 
 Use `data-cursor="interactive"` on any custom clickable element that is not
-reached by the selector above.
+reached by the selector above; it gets the native hand and hides the crosshair.
 
 ## 5. Verification
 
-Each change was checked in headless Microsoft Edge through the Chrome DevTools
-Protocol, which means `--remote-debugging-port`, `Input.dispatchMouseEvent`
-for pointer movement, and `Page.captureScreenshot` for images. Checks covered:
+Each change was checked in a headless browser (Chromium and Microsoft Edge)
+through the DevTools protocol: `npm run build` output, `Input.dispatchMouseEvent`
+for pointer movement and presses, a Playwright script for assertions, and
+`Page.captureScreenshot` for images. Checks covered:
 
 - `npm run typecheck` and `npm run build` after each change
 - dark and light themes, including the toggle
 - the 390px mobile viewport, checked for horizontal overflow
 - hover over the text and over the shader, and a click on the GitHub link to
   confirm the overlay does not block it
-- the native cursor is `none` on `body` and on links, and the crosshair is
-  positioned at the pointer
-- over a link the crosshair scales to 1.35, while pressed it scales to 0.8,
-  and `document.elementFromPoint` at the pointer returns the GitHub link
-- the crosshair hides when the pointer leaves the window
+- over text the element under the pointer has `cursor: text` and the crosshair
+  is hidden; over a link it has `cursor: pointer` and the crosshair is hidden;
+- over the background and the shader panel the native cursor is `none` and the
+  crosshair is visible, positioned at the pointer;
+- the canvas is pixel-identical between two frames while the pointer is still,
+  which confirms no particles or dashes are left running;
+- a 300px window around the pointer contains no red pixels after fast movement
+  in both themes; only violet dots are revealed;
+- the crosshair shrinks to 0.8 while the mouse is pressed;
+- a click on the GitHub link opens the link, so the overlay never blocks it;
 - `prefers-reduced-motion` emulated with `Emulation.setEmulatedMedia`
 - console exceptions (none were seen in the final runs)
 - the live site after deploy, by size and by DOM markers
@@ -185,10 +199,11 @@ The test scripts were temporary and are not in the repo.
 
 - The shader package is pinned to `0.0.82`. The `cat` shape from the original
   template is not available in that version.
-- The flashlight label and grid use canvas text at 10px. This is fine on
-  desktop. It has not been tested on high-DPI mobile devices.
-- The custom cursor depends on CSS `cursor: none`. Browser-owned UI such as
-  scrollbars may still show the operating system cursor. This was not tested.
+- The flashlight label is 10px DOM text. This is fine on desktop. It has not
+  been tested on high-DPI mobile devices.
+- The custom cursor depends on CSS `cursor: none` on `html`/`body`. Browser-owned
+  UI such as scrollbars may still show the operating system cursor. This was not
+  tested.
 - Screenshot checks ran in headless Edge with SwiftShader WebGL. Real GPU
   output may differ in timing, though not in layout.
 - `robots.txt` disallows all crawlers, and the page carries `noindex` meta
