@@ -27,7 +27,7 @@ The rebuild targets a shadcn-compatible React project:
 | Language | TypeScript (strict) | `tsconfig.json` |
 | Styling | Tailwind CSS v4 via `@tailwindcss/vite` | `app/src/index.css` |
 | Component layout | shadcn/ui conventions | `components.json` |
-| Shader | `@paper-design/shaders-react@0.0.82` | `app/src/components/ui/` |
+| Artwork | H.264 loop, 720x1280, 11 s | `app/public/artwork.mp4` |
 | Icons | `lucide-react` | used for the theme toggle |
 | Helper | `cn()` (clsx + tailwind-merge) | `app/src/lib/utils.ts` |
 
@@ -41,41 +41,58 @@ Key decisions:
   `index.html`. GitHub Pages then serves that file directly, with no build
   step on the server.
 - **Publish step.** `scripts/publish.mjs` copies `app/dist/index.html` to the
-  repo root and deletes `app/dist`. `npm run build` runs typecheck, then the
-  Vite build, then publish. The root `index.html` is a generated file and
-  should not be edited by hand.
+  repo root, copies the files in `app/public/` next to it, and deletes
+  `app/dist`. `npm run build` runs typecheck, then the Vite build, then publish.
+  The root `index.html` and the published media files are generated and should
+  not be edited by hand.
 - **`components.json`** uses the `new-york` style, `neutral` base colour, CSS
   variables, lucide icons, and aliases under `@/`. It is there so that
   `npx shadcn@latest add <component>` writes into `app/src/components/ui`.
 
 ## 3. Hero component integration
 
-The reference component (`portfolio-hero-with-paper-shaders.tsx`) was copied
-to `app/src/components/ui/` and adapted as follows:
+The hero (`app/src/components/ui/portfolio-hero.tsx`) started from a
+shadcn/Paper Shaders template and was adapted:
 
-1. **Shader API adjustment.** Version `0.0.82` of `@paper-design/shaders-react`
-   does not accept `shape="cat"`. Its allowed shapes are `simplex`, `warp`,
-   `dots`, `wave`, `ripple`, `swirl`, `sphere`. `pxSize` is deprecated in favour
-   of `size`. The component uses `shape="swirl"` and `size={3}`. Checked against
-   the installed `.d.ts` files, and the type error went away after the change.
-2. **Placeholder content replaced.** The template's CV content (a made-up
+1. **Placeholder content replaced.** The template's CV content (a made-up
    name and made-up company entries) was not used. The component renders the
    site's real bio and project list.
-3. **Icons.** The inline SVG sun and moon were replaced with `lucide-react`
+2. **Icons.** The inline SVG sun and moon were replaced with `lucide-react`
    `Sun` and `Moon`.
-4. **Theme state.** Theme is `dark` or `light`, stored in `localStorage` under
+3. **Theme state.** Theme is `dark` or `light`, stored in `localStorage` under
    `oldspoon-theme`. `app/index.html` sets the theme on `<html>` before React
    loads, to avoid a flash of the wrong theme.
-5. **Rotation.** The shader rotates at 4°/s. The value is rounded to whole
-   degrees before it reaches React, so the component re-renders only a few
-   times per second.
-6. **Reduced motion.** When `prefers-reduced-motion: reduce` is set, rotation
-   stops and the shader speed goes to 0.
-7. **Responsive layout.** Two columns from `md` up. Below `md` the shader
+4. **Responsive layout.** Two columns from `md` up. Below `md` the artwork
    panel moves above the text with a fixed height of 38vh.
 
-No providers, data fetching, or image assets were needed. The component takes
-no props.
+### The artwork panel
+
+The template's `Dithering` WebGL field (`shape="swirl"`) was later replaced,
+at the author's request, with a looping video of a specific artwork:
+`https://i.pinimg.com/474x/13/12/64/13126431e5a905dcc10db8d37a730f7e.jpg`, a
+300x559 greyscale painting of a gothic castle.
+
+- **Loop.** The frame is scaled with Lanczos and cropped to 720x1280, then
+  given a slow zoom: `zoom = 1.03 + 0.03 * sin(2*pi*frame/275)` at 25 fps for
+  275 frames. The last frame lands within 0.001 of the first, so the loop has
+  no visible seam and the crop never reveals an edge.
+- **Encode.** H.264, `-crf 24`, `yuv420p`, `+faststart`, no audio: 720x1280,
+  11 s, about 400 KB. The first frame is kept as `artwork-poster.jpg` (39 KB)
+  and used as the video poster.
+- **Markup.** `ArtworkLoop` renders a muted, inline, autoplaying, looping
+  `<video>` with `object-fit: cover`, positioned `absolute inset-0` inside its
+  panel. Absolute positioning keeps the video's 720x1280 aspect ratio from
+  stretching the flex row, so the desktop page stays exactly 100vh tall.
+  `prefers-reduced-motion: reduce` pauses it on frame 0 and resumes it when the
+  preference is turned off.
+- **Shipping.** Both files live in `app/public/`, which Vite serves in dev and
+  copies into `app/dist/`. `scripts/publish.mjs` then copies them next to the
+  root `index.html`, because the single-file build cannot inline a video. The
+  now-unused `@paper-design/shaders-react` dependency was removed, so the panel
+  needs no WebGL.
+
+No providers, data fetching, or other image assets are needed. The component
+takes no props.
 
 ## 4. The grid system
 
@@ -122,9 +139,9 @@ How it works:
 - **No projectiles.** There are no particles, sparks or falling dashes: once
   `burst` decays, the canvas is pixel-identical between frames.
 - **Theme.** Dark and light palettes are defined in one `PALETTE` object.
-- **Reduced motion.** The shader rotation and the bubble stop, and the reveal
-  switches on and off instantly instead of easing. The crosshair stays, because
-  the crosshair is the cursor.
+- **Reduced motion.** The artwork video is paused and the bubble stops, and the
+  reveal switches on and off instantly instead of easing. The crosshair stays,
+  because the crosshair is the cursor.
 
 ### Cursor
 
@@ -175,6 +192,11 @@ for pointer movement and presses, a Playwright script for assertions, and
   return to an exact 8px pitch after it stops
 - a 300px window around the pointer contains no red pixels after fast movement
   in both themes; only violet dots are revealed
+- the artwork video autoplays muted, advances, loops, and reports a 720x1280
+  frame and 11 s duration; its poster and media requests return 200
+- the video does not stretch the layout: the desktop panel and page stay 100vh
+- `prefers-reduced-motion` pauses the video on frame 0 and resumes it when the
+  preference is turned off
 - the crosshair shrinks to 0.8 while the mouse is pressed
 - a click on the GitHub link opens the link, so the overlay never blocks it
 - each project row contains only `(demo)` and `(source)` links; the project name
@@ -204,15 +226,18 @@ The test scripts were temporary and are not in the repo.
 
 ## 7. Known limits
 
-- The shader package is pinned to `0.0.82`. The `cat` shape from the original
-  template is not available in that version.
+- The artwork source is only 300x559, so the 720x1280 loop is upscaled and
+  looks soft on large displays. The zoom crops up to 6%, so the framing drifts
+  slightly through the loop.
+- The video and poster are separate files next to `index.html` (about 440 KB
+  together); only the HTML is a single self-contained file.
 - The flashlight label is 10px DOM text. This is fine on desktop. It has not
   been tested on high-DPI mobile devices.
 - The custom cursor depends on CSS `cursor: none !important`. Browser-owned
   UI such as scrollbars may still show the operating system cursor. This was not
   tested. Text selection has no I-beam either, only the crosshair, which is the
   intended trade-off of the always-on cursor.
-- Screenshot checks ran in headless Edge with SwiftShader WebGL. Real GPU
-  output may differ in timing, though not in layout.
+- Screenshot checks ran in headless Chromium with software rendering. Video
+  decode and scaling may differ slightly on real GPUs, though not in layout.
 - `robots.txt` disallows all crawlers, and the page carries `noindex` meta
   tags. Both were kept from the original site.

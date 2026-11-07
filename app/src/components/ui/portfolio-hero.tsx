@@ -1,8 +1,7 @@
 "use client"
 
-import { Dithering } from "@paper-design/shaders-react"
 import { Moon, Sun } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import GridBackdrop from "@/components/ui/grid-backdrop"
 
 type Theme = "dark" | "light"
@@ -34,47 +33,36 @@ function readInitialTheme(): Theme {
   return document.documentElement.dataset.theme === "light" ? "light" : "dark"
 }
 
-function DitheringField({
-  isDarkMode,
-  reduceMotion,
-}: {
-  isDarkMode: boolean
-  reduceMotion: boolean
-}) {
-  const [rotation, setRotation] = useState(0)
+function ArtworkLoop({ reduceMotion }: { reduceMotion: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
+    const video = videoRef.current
+
+    if (!video) return
+
     if (reduceMotion) {
-      setRotation(0)
+      video.pause()
+      video.currentTime = 0
       return
     }
 
-    let frame = 0
-    const started = performance.now()
-
-    const tick = (now: number) => {
-      // 4°/s, rounded to whole degrees so React only re-renders a few times a second.
-      setRotation(Math.floor(((now - started) / 1000) * 4) % 360)
-      frame = requestAnimationFrame(tick)
-    }
-
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
+    // Muted autoplay is allowed everywhere. If a browser blocks it anyway, the
+    // poster frame stays visible, so the panel is never empty.
+    void video.play().catch(() => {})
   }, [reduceMotion])
 
   return (
-    <Dithering
-      style={{ height: "100%", width: "100%" }}
-      colorBack={isDarkMode ? "#09090b" : "hsl(0, 0%, 95%)"}
-      colorFront={isDarkMode ? "hsl(320, 100%, 70%)" : "hsl(220, 100%, 70%)"}
-      shape="swirl"
-      type="4x4"
-      size={3}
-      offsetX={0}
-      offsetY={0}
-      scale={0.8}
-      rotation={rotation}
-      speed={reduceMotion ? 0 : 0.1}
+    <video
+      ref={videoRef}
+      className="absolute inset-0 h-full w-full object-cover"
+      src="./artwork.mp4"
+      poster="./artwork-poster.jpg"
+      autoPlay
+      loop
+      muted
+      playsInline
+      preload="metadata"
     />
   )
 }
@@ -222,7 +210,7 @@ export default function PortfolioHero() {
           isDarkMode ? "bg-[#09090b]" : "bg-white"
         }`}
       >
-        <DitheringField isDarkMode={isDarkMode} reduceMotion={reduceMotion} />
+        <ArtworkLoop reduceMotion={reduceMotion} />
       </div>
 
       <GridBackdrop theme={theme} />

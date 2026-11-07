@@ -1,6 +1,6 @@
 # oldspoon.github.io
 
-Personal site: a monospace CV panel next to a live Paper Shaders dither field.
+Personal site: a monospace CV panel next to a looping artwork video.
 Rebuilt on a React + TypeScript + Tailwind stack with a shadcn-compatible
 structure. Content is based only on the previous site; the name and contact
 details are anonymized to the `oldspoon` handle, while each project keeps its
@@ -14,8 +14,7 @@ Build history, design decisions and deploy notes are in
 - React 19 + TypeScript, built with Vite 7
 - Tailwind CSS v4 (`@tailwindcss/vite`, no `tailwind.config.js`)
 - shadcn/ui layout: `components.json`, `@/` alias, `components/ui`, `lib/utils`
-- [`@paper-design/shaders-react`](https://www.npmjs.com/package/@paper-design/shaders-react)
-  for the WebGL dither panel, `lucide-react` for icons
+- `lucide-react` for icons; the right-hand panel is a plain `<video>` loop
 
 ## Commands
 
@@ -41,8 +40,11 @@ app/
     App.tsx             # renders the hero
     index.css           # Tailwind import + base styles
     components/ui/
-      portfolio-hero-with-paper-shaders.tsx
-      grid-backdrop.tsx     # site-wide dot grid + flashlight
+      portfolio-hero.tsx    # CV panel, theme toggle, artwork video
+      grid-backdrop.tsx     # site-wide dot grid + cursor
+  public/
+    artwork.mp4           # 11s portrait loop for the right-hand panel
+    artwork-poster.jpg    # its first frame, used as the video poster
     lib/utils.ts        # cn() helper used by shadcn components
 components.json         # shadcn CLI config
 vite.config.ts          # root: app, single-file output, @ alias
@@ -72,18 +74,25 @@ npm run build
 The CLI reads `components.json` (style, CSS path, aliases) and writes into
 `app/src/components/ui`.
 
-## The shader panel
+## The artwork panel
 
-`Dithering` is a client-only WebGL component. It rotates slowly (4°/s),
-respects `prefers-reduced-motion` (rotation and shader motion stop, static
-frame remains) and the colors follow the theme toggle. On narrow screens the
-panel moves above the CV text and keeps a fixed 38vh height.
+The right-hand half is a looping video of the artwork: a 720x1280, 11 second
+H.264 loop (`app/public/artwork.mp4`) with a slow zoom that returns to its
+start, so the loop has no visible seam. It is muted, inline and autoplayed,
+with the first frame (`artwork-poster.jpg`) as the poster so the panel is never
+empty, even if playback is blocked. `prefers-reduced-motion: reduce` pauses it
+on the first frame. On narrow screens the panel moves above the CV text and
+keeps a fixed 38vh height, cropped with `object-fit: cover`.
+
+The source frame was 300x559, so the loop is upscaled; `scripts/publish.mjs`
+copies both files to the repo root next to `index.html` because the page is
+built as a single file and the video is too large to inline.
 
 ### Site-wide grid
 
 `components/ui/grid-backdrop.tsx` is a fixed, full-viewport canvas (z-20,
 `pointer-events: none`) that sits over the whole page, so the CV text, the
-project list and the shader panel all share one grid:
+project list and the artwork panel all share one grid:
 
 - a faint, always-on 8px dot grid of 2px square pixels in the violet accent
   (`#B897FB` on near-black, `#6D28D9` on white);
@@ -107,7 +116,7 @@ over links and buttons (arms scale to 1.35), shrinks while the mouse is
 pressed, and labels the grid cell under the pointer. Touch devices are not
 affected. See
 [`docs/how-it-was-built.md`](docs/how-it-was-built.md#cursor) for details.
-`prefers-reduced-motion` turns off the shader rotation and the bubble, and
+`prefers-reduced-motion` turns off the bubble and the artwork loop, and
 switches the flashlight on and off instantly instead of easing it.
 
 ### Project links
